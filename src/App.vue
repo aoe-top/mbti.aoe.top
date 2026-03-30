@@ -70,6 +70,24 @@
     <footer class="footer">
       <div class="container">
         <p>&copy; {{ currentYear }} {{ $t('home.title') }} | {{ $t('common.copyright') }}</p>
+        <div class="friendly-links-panel">
+          <p class="friendly-links-title">友情链接</p>
+          <p class="friendly-links-subtitle">实时同步站群最新友链，为测试页底部补充统一入口。</p>
+          <div v-if="friendlyLinksPending" class="friendly-links-state">友链加载中...</div>
+          <div v-else-if="friendlyLinksFailed" class="friendly-links-state">友链加载失败，请稍后重试。</div>
+          <div v-else class="friendly-links-list">
+            <a
+              v-for="link in friendLinks"
+              :key="link.url"
+              :href="link.url"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="friendly-links-item"
+            >
+              {{ link.name }}
+            </a>
+          </div>
+        </div>
         <div class="footer-links">
           <a href="https://github.com/3DMXM/mbti.aoe.top" target="_blank" rel="noopener noreferrer"
             class="footer-github-link">
@@ -91,10 +109,18 @@ import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import { useSEO } from '@/composables/useSEO'
 
+type FriendLink = {
+  name: string
+  url: string
+}
+
 const { locale } = useI18n()
 const route = useRoute()
 const router = useRouter()
 const currentYear = computed(() => new Date().getFullYear())
+const friendLinks = ref<FriendLink[]>([])
+const friendlyLinksPending = ref(true)
+const friendlyLinksFailed = ref(false)
 
 // 初始化SEO
 useSEO()
@@ -209,10 +235,28 @@ const closeMobileMenu = () => {
   isMobileMenuOpen.value = false
 }
 
+const loadFriendLinks = async () => {
+  try {
+    const response = await fetch('https://api.aoe.top/api/friendly/links')
+    if (!response.ok) {
+      throw new Error(`Failed to load links: ${response.status}`)
+    }
+
+    const data = await response.json()
+    friendLinks.value = Array.isArray(data) ? data : []
+  } catch (error) {
+    console.error(error)
+    friendlyLinksFailed.value = true
+  } finally {
+    friendlyLinksPending.value = false
+  }
+}
+
 // 生命周期
 onMounted(() => {
   document.addEventListener('click', handleClickOutside)
   document.addEventListener('keydown', handleKeyDown)
+  loadFriendLinks()
 
   // 同步路由语言和i18n语言
   if (route.meta?.lang && route.meta.lang !== locale.value) {
@@ -256,6 +300,61 @@ main {
 
 .footer-links {
   margin-top: 1rem;
+}
+
+.friendly-links-panel {
+  margin-top: 1.5rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.friendly-links-title {
+  margin: 0;
+  font-size: 0.85rem;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+}
+
+.friendly-links-subtitle {
+  margin: 0.6rem auto 0;
+  max-width: 40rem;
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 0.92rem;
+  line-height: 1.7;
+}
+
+.friendly-links-list {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.friendly-links-item,
+.friendly-links-state {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.65rem 1rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.9);
+  text-decoration: none;
+  transition: transform 0.2s ease, border-color 0.2s ease, background 0.2s ease;
+}
+
+.friendly-links-item:hover {
+  transform: translateY(-2px);
+  border-color: rgba(255, 255, 255, 0.36);
+  background: rgba(255, 255, 255, 0.14);
+}
+
+.friendly-links-state {
+  width: fit-content;
+  margin: 1rem auto 0;
 }
 
 .footer-github-link {
